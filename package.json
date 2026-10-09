@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx serve out"
+    "start": "npx serve out",
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

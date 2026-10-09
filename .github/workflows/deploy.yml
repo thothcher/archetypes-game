@@ -1,8 +1,9 @@
 name: Deploy to GitHub Pages
 
+# Manual for now: the site is published with `npm run deploy` (gh-pages branch).
+# To deploy from Actions instead, set Settings → Pages → Source to "GitHub Actions"
+# and add `push: branches: [main]` below.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

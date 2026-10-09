@@ -11,11 +11,16 @@ npm install
 npm run dev        # http://localhost:3000
 npm run build      # static site in out/
 npm start          # serve out/ locally
+npm run deploy     # publish to GitHub Pages
 ```
 
 ## Deploy
 
-Every push to `main` runs `.github/workflows/deploy.yml`. The workflow builds the static export with `PAGES_BASE_PATH=/<repo name>` and publishes `out/` to GitHub Pages. Locally the base path is empty, so the dev server stays at `/`.
+```bash
+npm run deploy
+```
+
+This builds the static site with the base path `/<repo name>` and force-pushes `out/` to the `gh-pages` branch, which GitHub Pages serves (Settings → Pages → Deploy from a branch → `gh-pages` / root). No GitHub Actions minutes needed. The workflow in `.github/workflows/deploy.yml` is an alternative for when Actions is available; it is manual-only for now. Locally the base path is empty, so the dev server stays at `/`.
 
 ## Stack
 
