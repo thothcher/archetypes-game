@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Gender } from "./archetypes";
-import type { Lang } from "./i18n";
+import type { Lang } from "./locale";
 
 // Interface strings. *word* renders as emphasis via rich().
 
@@ -12,6 +12,7 @@ const en = {
     practices: "Practices",
     soundOn: "sound on",
     soundOff: "enable sound",
+    menu: "Main",
   },
   footer: {
     about: "VAS · an educational game on C. G. Jung's analytical psychology",
@@ -44,6 +45,7 @@ const en = {
     title1: "Live a day.",
     title2: "Watch the waters move.",
     insight: "insight",
+    vesselLabel: "Glass vessel filled with four archetypes",
     dragHint: "drag to turn the vessel",
     loading: "filling the vessel…",
     beforeBegin: "Before you begin",
@@ -107,6 +109,33 @@ const en = {
     vessel: { man: "Man · Anima", woman: "Woman · Animus" } as Record<Gender, string>,
     chosen: "practices chosen",
   },
+  faq: {
+    label: "04 — Questions",
+    title1: "What students",
+    title2: "usually ask.",
+    items: [
+      {
+        q: "What are Jung's four main archetypes?",
+        a: "In Carl Gustav Jung's analytical psychology, four archetypes shape the personality most directly: the Persona (the social mask), the Shadow (what we repress or deny), the Anima or Animus (the inner image of the other sex, a bridge to the unconscious) and the Self (the center and totality of the psyche).",
+      },
+      {
+        q: "What is the Shadow in Jungian psychology?",
+        a: "The Shadow holds everything we don't want to see in ourselves: anger, envy and desire, but also talents we never lived. When we deny it, we project it onto other people. Jung's aim was not to get rid of the Shadow but to make it conscious and integrate it.",
+      },
+      {
+        q: "What is the difference between the Anima and the Animus?",
+        a: "In Jung's classical model, a man's soul-image is feminine (the Anima: feeling, Eros, imagination) and a woman's is masculine (the Animus: Logos, will, discernment). Both lead toward the unconscious. While they stay unconscious they show up as moods or rigid opinions and get projected onto the other sex.",
+      },
+      {
+        q: "What is individuation?",
+        a: "Individuation is Jung's word for the lifelong process of becoming whole: wearing the Persona lightly, integrating the Shadow, relating consciously to the Anima or Animus, and living more and more from the Self.",
+      },
+      {
+        q: "Is this a psychological test?",
+        a: "No. The percentages are a teaching metaphor, not a measurement. The game shows how archetypes work in everyday situations. It is not a diagnosis or therapy.",
+      },
+    ],
+  },
 };
 
 export type UI = typeof en;
@@ -119,6 +148,7 @@ const ka: UI = {
     practices: "პრაქტიკები",
     soundOn: "ხმა ჩართულია",
     soundOff: "ხმის ჩართვა",
+    menu: "მთავარი მენიუ",
   },
   footer: {
     about: "VAS · საგანმანათლებლო თამაში კ. გ. იუნგის ანალიტიკურ ფსიქოლოგიაზე",
@@ -151,6 +181,7 @@ const ka: UI = {
     title1: "გაატარე ერთი დღე.",
     title2: "უყურე, როგორ მოძრაობს წყალი.",
     insight: "ინტუიცია",
+    vesselLabel: "მინის ჭურჭელი, ოთხი არქეტიპით სავსე",
     dragHint: "გადაათრიე ჭურჭლის მოსაბრუნებლად",
     loading: "ჭურჭელი ივსება…",
     beforeBegin: "სანამ დაიწყებ",
@@ -213,6 +244,33 @@ const ka: UI = {
     all: "ყველა",
     vessel: { man: "მამაკაცი · ანიმა", woman: "ქალი · ანიმუსი" },
     chosen: "არჩეული პრაქტიკა",
+  },
+  faq: {
+    label: "04 — კითხვები",
+    title1: "რას კითხულობენ",
+    title2: "ყველაზე ხშირად.",
+    items: [
+      {
+        q: "რომელია იუნგის ოთხი მთავარი არქეტიპი?",
+        a: "კარლ გუსტავ იუნგის ანალიტიკურ ფსიქოლოგიაში პიროვნებას ყველაზე პირდაპირ ოთხი არქეტიპი აყალიბებს: პერსონა (სოციალური ნიღაბი), ჩრდილი (ის, რასაც ვდევნით ან უარვყოფთ), ანიმა ან ანიმუსი (საპირისპირო სქესის შინაგანი ხატი, ხიდი არაცნობიერისკენ) და თვითობა (ფსიქიკის ცენტრი და მთლიანობა).",
+      },
+      {
+        q: "რა არის ჩრდილი იუნგიანურ ფსიქოლოგიაში?",
+        a: "ჩრდილი მოიცავს ყველაფერს, რისი დანახვაც საკუთარ თავში არ გვინდა: ბრაზს, შურს და სურვილს, მაგრამ ასევე ნიჭს, რომლითაც არასდროს გვიცხოვრია. როცა მას უარვყოფთ, სხვა ადამიანებზე ვაპროექტებთ. იუნგის მიზანი ჩრდილის მოშორება კი არ იყო, არამედ მისი გაცნობიერება და ინტეგრაცია.",
+      },
+      {
+        q: "რით განსხვავდება ანიმა ანიმუსისგან?",
+        a: "იუნგის კლასიკურ მოდელში მამაკაცის სულის ხატი ქალურია (ანიმა: გრძნობა, ეროსი, წარმოსახვა), ქალისა კი მამაკაცური (ანიმუსი: ლოგოსი, ნება, გარჩევის უნარი). ორივე არაცნობიერისკენ მიგვიძღვება. სანამ არაცნობიერია, ცვალებად გუნებად ან ხისტ აზრებად ვლინდება და საპირისპირო სქესზე პროეცირდება.",
+      },
+      {
+        q: "რა არის ინდივიდუაცია?",
+        a: "ინდივიდუაცია იუნგის ტერმინია მთლიანობისკენ მიმავალი, მთელი ცხოვრების პროცესისთვის: პერსონის მსუბუქად ტარება, ჩრდილის ინტეგრაცია, ანიმასთან ან ანიმუსთან ცნობიერი ურთიერთობა და სულ უფრო მეტად თვითობიდან ცხოვრება.",
+      },
+      {
+        q: "ეს ფსიქოლოგიური ტესტია?",
+        a: "არა. პროცენტები სასწავლო მეტაფორაა და არა გაზომვა. თამაში აჩვენებს, როგორ მუშაობენ არქეტიპები ყოველდღიურ სიტუაციებში. ეს არ არის დიაგნოზი ან თერაპია.",
+      },
+    ],
   },
 };
 

@@ -1,9 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, LazyMotion, m } from "framer-motion";
+import { useEffect, useRef } from "react";
 import {
   ORDER,
   SOUL,
@@ -17,26 +16,17 @@ import {
   type Gender,
   type Psyche,
 } from "@/lib/archetypes";
-import { useLang, type Lang } from "@/lib/i18n";
-import { SCENARIOS, biggestMovers, localizeScenario, type Choice } from "@/lib/scenarios";
+import { INITIAL, setGame, useGame, type Step } from "@/lib/gameStore";
+import { useLang } from "@/lib/i18n";
+import { localePath, type Lang } from "@/lib/locale";
+import { SCENARIOS, biggestMovers, localizeScenario } from "@/lib/scenarios";
 import { chime } from "@/lib/sound";
 import { UI_TEXT, type UI } from "@/lib/ui";
 import { useGender } from "@/lib/useGender";
+import FluidAvatar from "./FluidAvatar";
 
-const FluidAvatar = dynamic(() => import("./FluidAvatar"), {
-  ssr: false,
-  loading: () => <div className="avatar avatar-loading">…</div>,
-});
-
-type Phase = "gender" | "choose" | "predict" | "reveal" | "end";
-
-interface Step {
-  /** index into SCENARIOS / its choices, so the path re-renders in the current language */
-  scenario: number;
-  choice: number;
-  guessed: ArchetypeKey | null;
-  correct: boolean;
-}
+// Animation features load after the page is interactive.
+const loadMotion = () => import("@/lib/motionFeatures").then((r) => r.default);
 
 const ease = [0.22, 1, 0.36, 1] as const;
 const GENDERS: Gender[] = ["man", "woman"];
@@ -47,17 +37,18 @@ export default function Game() {
   const { lang } = useLang();
   const t = UI_TEXT[lang].game;
   const [gender, setGender] = useGender();
-  const [psyche, setPsyche] = useState<Psyche>(START);
-  const [idx, setIdx] = useState(0);
-  const [phase, setPhase] = useState<Phase>("gender");
-  const [choiceIdx, setChoiceIdx] = useState<number | null>(null);
-  const [guess, setGuess] = useState<ArchetypeKey | null>(null);
-  const [history, setHistory] = useState<Step[]>([]);
-  const [pulseTick, setPulseTick] = useState(0);
-  const [pulseKeys, setPulseKeys] = useState<ArchetypeKey[]>([]);
-  const [predictMode, setPredictMode] = useState(true);
+  const { psyche, idx, phase, choiceIdx, guess, history, pulseTick, pulseKeys, predictMode } = useGame();
+  const stageRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
+  const inView = useRef(false);
   const firstStep = useRef(true);
+
+  // Keyboard shortcuts only apply while the game is actually on screen.
+  useEffect(() => {
+    const io = new IntersectionObserver(([e]) => (inView.current = e.isIntersecting), { threshold: 0.35 });
+    io.observe(stageRef.current!);
+    return () => io.disconnect();
+  }, []);
 
   // On phones the vessel is pinned on top: bring each new card up beneath it.
   useEffect(() => {
@@ -72,7 +63,7 @@ export default function Game() {
 
   const g: Gender = gender ?? "man";
   const scenario = localizeScenario(SCENARIOS[idx], lang);
-  const choice: Choice | null = choiceIdx === null ? null : scenario.choices[choiceIdx];
+  const choice = choiceIdx === null ? null : scenario.choices[choiceIdx];
   const score = history.filter((h) => h.correct).length;
   const guesses = history.filter((h) => h.guessed).length;
   const deltas = choice ? pick(choice.deltas, g) : {};
@@ -85,59 +76,50 @@ export default function Game() {
 
   function chooseGender(next: Gender) {
     setGender(next);
-    setPulseKeys(["soul"]);
-    setPulseTick((n) => n + 1);
-    setPhase("choose");
+    setGame((s) => ({ phase: "choose", pulseKeys: ["soul"], pulseTick: s.pulseTick + 1 }));
   }
 
   function choose(i: number) {
-    setChoiceIdx(i);
-    if (predictMode) setPhase("predict");
+    if (predictMode) setGame({ choiceIdx: i, phase: "predict" });
     else commit(i, null);
   }
 
   function commit(i: number, guessed: ArchetypeKey | null) {
     const d = pick(scenario.choices[i].deltas, g);
-    const movers = biggestMovers(d);
-    setGuess(guessed);
-    setPsyche((p) => applyDeltas(p, d));
-    setPulseKeys(Object.keys(d) as ArchetypeKey[]);
-    setPulseTick((n) => n + 1);
-    setHistory((h) => [...h, { scenario: idx, choice: i, guessed, correct: !!guessed && movers.includes(guessed) }]);
+    const correct = !!guessed && biggestMovers(d).includes(guessed);
+    setGame((s) => ({
+      choiceIdx: i,
+      guess: guessed,
+      psyche: applyDeltas(s.psyche, d),
+      pulseKeys: Object.keys(d) as ArchetypeKey[],
+      pulseTick: s.pulseTick + 1,
+      history: [...s.history, { scenario: idx, choice: i, guessed, correct }],
+      phase: "reveal",
+    }));
     chime((d.self ?? 0) - (d.shadow ?? 0) >= 0 ? "light" : "dark");
-    setPhase("reveal");
   }
 
   function next() {
-    setChoiceIdx(null);
-    setGuess(null);
-    if (idx + 1 >= SCENARIOS.length) setPhase("end");
-    else {
-      setIdx(idx + 1);
-      setPhase("choose");
-    }
+    if (idx + 1 >= SCENARIOS.length) setGame({ choiceIdx: null, guess: null, phase: "end" });
+    else setGame({ choiceIdx: null, guess: null, idx: idx + 1, phase: "choose" });
   }
 
   function restart() {
-    setPsyche(START);
-    setIdx(0);
-    setHistory([]);
-    setChoiceIdx(null);
-    setGuess(null);
-    setPhase("gender");
-    setPulseKeys(ORDER);
-    setPulseTick((n) => n + 1);
+    setGame((s) => ({ ...INITIAL, predictMode: s.predictMode, psyche: START, pulseKeys: ORDER, pulseTick: s.pulseTick + 1 }));
   }
 
   // GTA-style keyboard: 1–4 to pick, Enter to continue
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+      if (!inView.current || e.altKey || e.ctrlKey || e.metaKey) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
       const n = parseInt(e.key, 10);
       if (phase === "gender" && (n === 1 || n === 2)) chooseGender(GENDERS[n - 1]);
       else if (phase === "choose" && n >= 1 && n <= scenario.choices.length) choose(n - 1);
       else if (phase === "predict" && n >= 1 && n <= 4 && choiceIdx !== null) commit(choiceIdx, PREDICT_ORDER[n - 1]);
       else if (phase === "reveal" && (e.key === "Enter" || e.key === " ")) {
+        if (tag === "BUTTON" || tag === "A") return; // let the focused control do its own thing
         e.preventDefault();
         next();
       }
@@ -148,249 +130,232 @@ export default function Game() {
 
   const ind = individuation(psyche);
   const lastStep = history[history.length - 1];
+  const card = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -16 }, transition: { duration: 0.6, ease } };
 
   return (
-    <section className="game" id="experience">
+    <section className="game" id="experience" aria-labelledby="game-title">
       <div className="section-head">
         <span className="mono">{t.label}</span>
-        <h2 className="display">
+        <h2 className="display" id="game-title">
           {t.title1} <em>{t.title2}</em>
         </h2>
       </div>
 
-      <div className="stage">
-        <div className="stage-left">
-          <div className="hud">
-            <div className="hud-row">
-              <span className="mono dim">
-                {phase === "gender" ? "00" : String(Math.min(idx + 1, SCENARIOS.length)).padStart(2, "0")} /{" "}
-                {SCENARIOS.length}
-              </span>
-              <span className="mono dim">
-                {t.insight} {score}/{guesses}
-              </span>
-            </div>
-            <div className="meters">
-              {PREDICT_ORDER.map((k) => {
-                const a = look(k);
-                return (
-                  <div className="meter" key={k} style={{ ["--c" as string]: a.color }}>
-                    <div className="meter-top">
-                      <span>
-                        {a.glyph} {a.name}
-                      </span>
-                      <span className="mono">{psyche[k].toFixed(1)}%</span>
+      <LazyMotion features={loadMotion} strict>
+        <div className="stage" ref={stageRef}>
+          <div className="stage-left">
+            <div className="hud">
+              <div className="hud-row">
+                <span className="mono dim">
+                  {phase === "gender" ? "00" : String(Math.min(idx + 1, SCENARIOS.length)).padStart(2, "0")} /{" "}
+                  {SCENARIOS.length}
+                </span>
+                <span className="mono dim">
+                  {t.insight} {score}/{guesses}
+                </span>
+              </div>
+              <div className="meters">
+                {PREDICT_ORDER.map((k) => {
+                  const a = look(k);
+                  return (
+                    <div className="meter" key={k} style={{ ["--c" as string]: a.color }}>
+                      <div className="meter-top">
+                        <span className="meter-name">
+                          {a.glyph} {a.name}
+                        </span>
+                        <span className="mono">{psyche[k].toFixed(1)}%</span>
+                      </div>
+                      <div className="meter-track">
+                        <div className="meter-fill" style={{ transform: `scaleX(${psyche[k] / 100})` }} />
+                      </div>
                     </div>
-                    <div className="meter-track">
-                      <motion.div
-                        className="meter-fill"
-                        animate={{ width: `${psyche[k]}%` }}
-                        transition={{ duration: 1.2, ease }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+              <IndividuationRing value={ind} t={t} />
             </div>
-            <IndividuationRing value={ind} t={t} />
+
+            <FluidAvatar psyche={psyche} gender={phase === "gender" ? gender : g} pulseTick={pulseTick} pulseKeys={pulseKeys} />
+            <p className="mono dim drag-hint" aria-hidden>
+              {t.dragHint}
+            </p>
           </div>
 
-          <FluidAvatar
-            psyche={psyche}
-            gender={phase === "gender" ? gender : g}
-            pulseTick={pulseTick}
-            pulseKeys={pulseKeys}
-          />
-          <p className="mono dim drag-hint">{t.dragHint}</p>
-        </div>
-
-        <div className="stage-right" ref={rightRef}>
-          <AnimatePresence mode="wait">
-            {phase === "gender" && (
-              <motion.div
-                key="gender"
-                className="card"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.6, ease }}
-              >
-                <div className="card-meta">
-                  <span className="tag riddle">{t.beforeBegin}</span>
-                </div>
-                <h3 className="display card-title">
-                  {t.choose1} <em>{t.choose2}</em>
-                </h3>
-                <p className="prompt">
-                  {t.genderIntro(
-                    <b style={{ color: SOUL.man.color }}>{archL("soul", "man", lang).name}</b>,
-                    <b style={{ color: SOUL.woman.color }}>{archL("soul", "woman", lang).name}</b>
-                  )}
-                </p>
-                <div className="gender-grid">
-                  {GENDERS.map((opt, i) => {
-                    const s = archL("soul", opt, lang);
-                    return (
-                      <button
-                        key={opt}
-                        className={`gender ${gender === opt ? "on" : ""}`}
-                        style={{ ["--c" as string]: s.color }}
-                        onClick={() => chooseGender(opt)}
-                      >
-                        <span className="key">{i + 1}</span>
-                        <span className="gender-title display">{t.gender[opt]}</span>
-                        <span className="gender-soul">
-                          {s.glyph} {t.carries[opt]}
-                        </span>
-                        <span className="gender-desc">{s.essence}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-
-            {phase === "choose" && (
-              <motion.div
-                key={`c-${scenario.id}`}
-                className="card"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.6, ease }}
-              >
-                <div className="card-meta">
-                  <span className={`tag ${scenario.kind}`}>{scenario.kind === "riddle" ? t.riddle : t.situation}</span>
-                  <span className="mono dim">{scenario.place}</span>
-                </div>
-                <h3 className="display card-title">{scenario.title}</h3>
-                {scenario.speaker && <p className="mono speaker">{scenario.speaker}</p>}
-                <p className="prompt">{pick(scenario.prompt, g)}</p>
-
-                <ol className="choices">
-                  {scenario.choices.map((c, i) => (
-                    <li key={i}>
-                      <button onClick={() => choose(i)} className="choice">
-                        <span className="key">{i + 1}</span>
-                        <span className="choice-body">
-                          <span className="choice-label">{c.label}</span>
-                          <span className="choice-line">{c.line}</span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ol>
-                <label className="toggle mono">
-                  <input type="checkbox" checked={predictMode} onChange={(e) => setPredictMode(e.target.checked)} />
-                  <span /> {t.predictToggle}
-                </label>
-              </motion.div>
-            )}
-
-            {phase === "predict" && choice && choiceIdx !== null && (
-              <motion.div
-                key="predict"
-                className="card"
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.45, ease }}
-              >
-                <span className="mono dim">{t.youChose}</span>
-                <p className="chosen">{choice.line}</p>
-                <h3 className="display card-title small">
-                  {t.predict1} <em>{t.predict2}</em>
-                </h3>
-                <div className="predict-grid">
-                  {PREDICT_ORDER.map((k, i) => {
-                    const a = archL(k, g, lang);
-                    return (
-                      <button
-                        key={k}
-                        className="predict"
-                        style={{ ["--c" as string]: a.color }}
-                        onClick={() => commit(choiceIdx, k)}
-                      >
-                        <span className="key">{i + 1}</span>
-                        <span className="glyph">{a.glyph}</span>
-                        <span>{a.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button className="link mono" onClick={() => commit(choiceIdx, null)}>
-                  {t.skip}
-                </button>
-              </motion.div>
-            )}
-
-            {phase === "reveal" && choice && (
-              <motion.div
-                key={`r-${scenario.id}`}
-                className="card"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.6, ease }}
-              >
-                {guess && (
-                  <p className={`verdict ${lastStep?.correct ? "ok" : "no"}`}>
-                    {lastStep?.correct ? t.right : t.notQuite(biggestMovers(deltas).map(name).join(t.and))}
+          <div className="stage-right" ref={rightRef} aria-live="polite">
+            <AnimatePresence mode="wait">
+              {phase === "gender" && (
+                <m.div key="gender" className="card" {...card}>
+                  <div className="card-meta">
+                    <span className="tag riddle">{t.beforeBegin}</span>
+                  </div>
+                  <h3 className="display card-title">
+                    {t.choose1} <em>{t.choose2}</em>
+                  </h3>
+                  <p className="prompt">
+                    {t.genderIntro(
+                      <b style={{ color: SOUL.man.color }}>{archL("soul", "man", lang).name}</b>,
+                      <b style={{ color: SOUL.woman.color }}>{archL("soul", "woman", lang).name}</b>
+                    )}
                   </p>
-                )}
-                <p className="chosen">{choice.line}</p>
-                <div className="deltas">
-                  {PREDICT_ORDER.map((k) => {
-                    const v = deltas[k] ?? 0;
-                    const a = archL(k, g, lang);
-                    return (
-                      <div
-                        key={k}
-                        className={`delta ${v > 0 ? "up" : v < 0 ? "down" : "flat"}`}
-                        style={{ ["--c" as string]: a.color }}
-                      >
-                        <span className="glyph">{a.glyph}</span>
-                        <span>{a.name}</span>
-                        <span className="mono">{v > 0 ? `▲ +${v}` : v < 0 ? `▼ ${v}` : "—"}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="insight">{pick(choice.insight, g)}</p>
-                {scenario.quote && (
-                  <blockquote>
-                    {lang === "ka" ? `„${scenario.quote.text}“` : `“${scenario.quote.text}”`}
-                    <cite className="mono">{scenario.quote.source}</cite>
-                  </blockquote>
-                )}
-                <button className="cta" onClick={next}>
-                  {idx + 1 >= SCENARIOS.length ? t.seeVessel : t.next} <span className="mono">↵</span>
-                </button>
-              </motion.div>
-            )}
+                  <div className="gender-grid">
+                    {GENDERS.map((opt, i) => {
+                      const s = archL("soul", opt, lang);
+                      return (
+                        <button
+                          key={opt}
+                          className={`gender ${gender === opt ? "on" : ""}`}
+                          style={{ ["--c" as string]: s.color }}
+                          onClick={() => chooseGender(opt)}
+                        >
+                          <span className="key" aria-hidden>
+                            {i + 1}
+                          </span>
+                          <span className="gender-title display">{t.gender[opt]}</span>
+                          <span className="gender-soul">
+                            {s.glyph} {t.carries[opt]}
+                          </span>
+                          <span className="gender-desc">{s.essence}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </m.div>
+              )}
 
-            {phase === "end" && (
-              <motion.div
-                key="end"
-                className="card"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease }}
-              >
-                <Ending psyche={psyche} history={history} gender={g} lang={lang} t={t} />
-                <div className="end-actions">
-                  <button className="cta" onClick={restart}>
-                    {t.again}
+              {phase === "choose" && (
+                <m.div key={`c-${scenario.id}`} className="card" {...card}>
+                  <div className="card-meta">
+                    <span className={`tag ${scenario.kind}`}>{scenario.kind === "riddle" ? t.riddle : t.situation}</span>
+                    <span className="mono dim">{scenario.place}</span>
+                  </div>
+                  <h3 className="display card-title">{scenario.title}</h3>
+                  {scenario.speaker && <p className="mono speaker">{scenario.speaker}</p>}
+                  <p className="prompt">{pick(scenario.prompt, g)}</p>
+
+                  <ol className="choices">
+                    {scenario.choices.map((c, i) => (
+                      <li key={i}>
+                        <button onClick={() => choose(i)} className="choice">
+                          <span className="key" aria-hidden>
+                            {i + 1}
+                          </span>
+                          <span className="choice-body">
+                            <span className="choice-label">{c.label}</span>
+                            <span className="choice-line">{c.line}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                  <label className="toggle mono">
+                    <input
+                      type="checkbox"
+                      checked={predictMode}
+                      onChange={(e) => setGame({ predictMode: e.target.checked })}
+                    />
+                    <span aria-hidden /> {t.predictToggle}
+                  </label>
+                </m.div>
+              )}
+
+              {phase === "predict" && choice && choiceIdx !== null && (
+                <m.div
+                  key="predict"
+                  className="card"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.45, ease }}
+                >
+                  <span className="mono dim">{t.youChose}</span>
+                  <p className="chosen">{choice.line}</p>
+                  <h3 className="display card-title small">
+                    {t.predict1} <em>{t.predict2}</em>
+                  </h3>
+                  <div className="predict-grid">
+                    {PREDICT_ORDER.map((k, i) => {
+                      const a = archL(k, g, lang);
+                      return (
+                        <button
+                          key={k}
+                          className="predict"
+                          style={{ ["--c" as string]: a.color }}
+                          onClick={() => commit(choiceIdx, k)}
+                        >
+                          <span className="key" aria-hidden>
+                            {i + 1}
+                          </span>
+                          <span className="glyph" aria-hidden>
+                            {a.glyph}
+                          </span>
+                          <span>{a.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button className="link mono" onClick={() => commit(choiceIdx, null)}>
+                    {t.skip}
                   </button>
-                  <Link className="cta ghost" href="/practices/">
-                    {t.toPractices}
-                  </Link>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </m.div>
+              )}
+
+              {phase === "reveal" && choice && (
+                <m.div key={`r-${scenario.id}`} className="card" {...card}>
+                  {guess && (
+                    <p className={`verdict ${lastStep?.correct ? "ok" : "no"}`}>
+                      {lastStep?.correct ? t.right : t.notQuite(biggestMovers(deltas).map(name).join(t.and))}
+                    </p>
+                  )}
+                  <p className="chosen">{choice.line}</p>
+                  <div className="deltas">
+                    {PREDICT_ORDER.map((k) => {
+                      const v = deltas[k] ?? 0;
+                      const a = archL(k, g, lang);
+                      return (
+                        <div
+                          key={k}
+                          className={`delta ${v > 0 ? "up" : v < 0 ? "down" : "flat"}`}
+                          style={{ ["--c" as string]: a.color }}
+                        >
+                          <span className="glyph" aria-hidden>
+                            {a.glyph}
+                          </span>
+                          <span>{a.name}</span>
+                          <span className="mono">{v > 0 ? `▲ +${v}` : v < 0 ? `▼ ${v}` : "—"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="insight">{pick(choice.insight, g)}</p>
+                  {scenario.quote && (
+                    <blockquote>
+                      {lang === "ka" ? `„${scenario.quote.text}“` : `“${scenario.quote.text}”`}
+                      <cite className="mono">{scenario.quote.source}</cite>
+                    </blockquote>
+                  )}
+                  <button className="cta" onClick={next}>
+                    {idx + 1 >= SCENARIOS.length ? t.seeVessel : t.next} <span className="mono" aria-hidden>↵</span>
+                  </button>
+                </m.div>
+              )}
+
+              {phase === "end" && (
+                <m.div key="end" className="card" {...card}>
+                  <Ending psyche={psyche} history={history} gender={g} lang={lang} t={t} />
+                  <div className="end-actions">
+                    <button className="cta" onClick={restart}>
+                      {t.again}
+                    </button>
+                    <Link className="cta ghost" href={localePath("/practices/", lang)}>
+                      {t.toPractices}
+                    </Link>
+                  </div>
+                </m.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
+      </LazyMotion>
     </section>
   );
 }
@@ -400,16 +365,15 @@ function IndividuationRing({ value, t }: { value: number; t: UI["game"] }) {
   const c = 2 * Math.PI * r;
   return (
     <div className="ring" title={t.ringTitle}>
-      <svg width="64" height="64" viewBox="0 0 64 64">
+      <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden>
         <circle cx="32" cy="32" r={r} className="ring-bg" />
-        <motion.circle
+        <circle
           cx="32"
           cy="32"
           r={r}
           className="ring-fg"
           strokeDasharray={c}
-          animate={{ strokeDashoffset: c * (1 - value / 100) }}
-          transition={{ duration: 1.2, ease }}
+          style={{ strokeDashoffset: c * (1 - value / 100) }}
         />
       </svg>
       <div>

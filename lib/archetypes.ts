@@ -1,4 +1,4 @@
-import type { Lang } from "./i18n";
+import type { Lang } from "./locale";
 import { KA_ARCH } from "./ka";
 
 // Jung's four principal archetypes of the personality:
@@ -48,7 +48,7 @@ const SHADOW: Archetype = {
   key: "shadow",
   name: "Shadow",
   glyph: "◐",
-  color: "#7b4dd6",
+  color: "#a07cf2", // text-safe violet (6:1 on the background); the liquid keeps its deep ink via rgb
   rgb: [0.2, 0.08, 0.38],
   essence: "Everything you refuse to see in yourself: repressed desire, anger, envy, and talents you never lived.",
   light: "Integrated, it becomes vitality, honesty, boundaries, creative fire.",

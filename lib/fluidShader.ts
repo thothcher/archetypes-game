@@ -3,17 +3,16 @@
 // The body is a signed-distance field that morphs between male and female proportions (uFem).
 // The liquid is integrated as a volume behind a thin glass skin. Each layer's thickness = archetype %.
 
+// Full-screen triangle; the fragment shader works in pixel space (gl_FragCoord).
 export const vertex = /* glsl */ `
-varying vec2 vUv;
+attribute vec2 aPos;
 void main() {
-  vUv = uv;
-  gl_Position = vec4(position.xy, 0.0, 1.0);
+  gl_Position = vec4(aPos, 0.0, 1.0);
 }
 `;
 
 export const fragment = /* glsl */ `
 precision highp float;
-varying vec2 vUv;
 
 uniform float uTime;
 uniform vec2  uRes;
@@ -242,7 +241,7 @@ vec2 cylinder(vec3 ro, vec3 rd, float r) {
 }
 
 void main() {
-  vec2 frag = vUv * uRes;
+  vec2 frag = gl_FragCoord.xy;
   vec2 uv = (frag - 0.5 * uRes) / uRes.y;
 
   vec3 ro = vec3(0.0, uCamY, 3.0);

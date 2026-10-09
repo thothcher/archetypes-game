@@ -45,7 +45,8 @@ export default function Practices() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORE);
-      if (raw) setPicked(JSON.parse(raw));
+      // ignore ids of practices that no longer exist (older saves)
+      if (raw) setPicked((JSON.parse(raw) as string[]).filter((id) => PRACTICES.some((p) => p.id === id)));
     } catch {}
   }, []);
 

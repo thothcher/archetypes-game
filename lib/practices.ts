@@ -1,5 +1,5 @@
 import type { ArchetypeKey, Gendered, Psyche } from "./archetypes";
-import type { Lang } from "./i18n";
+import type { Lang } from "./locale";
 import { KA_PRACTICES } from "./ka";
 
 export interface Practice {
