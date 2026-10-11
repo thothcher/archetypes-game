@@ -43,7 +43,7 @@ app/sitemap.ts, manifest.ts, not-found.tsx, icon.svg, apple-icon.png
 components/
   FluidAvatar.tsx     vessel canvas, drag-to-spin, layer labels, no-WebGL fallback
   Intro.tsx           hero and the four archetype cards
-  Game.tsx            choose vessel → choose → predict → reveal → ending
+  Game.tsx            choose vessel → choose → predict → reveal → ending (a random day each time)
   Faq.tsx             common questions (also FAQPage structured data)
   Practices.tsx       tick practices, watch the vessel rebalance
 lib/
@@ -52,7 +52,7 @@ lib/
   gameStore.ts        game progress (survives switching language mid-game)
   seo.ts              titles, descriptions, canonical/hreflang, Open Graph, JSON-LD
   archetypes.ts       colours, descriptions, percentage model, individuation index
-  scenarios.ts        all situations and riddles, with deltas (edit here to add content)
+  scenarios.ts        the pool of situations and riddles, with deltas, and the random day draw
   practices.ts        balancing practices with their effects
   i18n.tsx, locale.ts language context and URL helpers
   ui.tsx              interface strings in both languages
@@ -73,7 +73,9 @@ Each language has its own prerendered URLs (`/` and `/ka/`, `/practices/` and `/
 
 ## Adding a scenario
 
-Add an object to `SCENARIOS` in `lib/scenarios.ts`. Each choice has raw `deltas` (for example `{ shadow: 6, persona: 3, self: -2 }`). These are applied and then renormalised, so the vessel always totals 100%. Write an `insight` that explains the Jungian mechanism, not just the verdict. That explanation is what students learn from. Then add the Georgian text under the same id in `lib/ka.ts`, with the choices in the same order.
+Each playthrough draws a fresh day from the pool: 10 random situations and 2 of the 4 riddles (one per archetype), with the riddles spread out and never first. The sizes are `SITUATIONS_PER_DAY` and `RIDDLES_PER_DAY` in `lib/scenarios.ts`.
+
+Add an object to `SCENARIOS` in `lib/scenarios.ts`. Each choice has raw `deltas` (for example `{ shadow: 6, persona: 3, self: -2 }`). These are applied and then renormalised, so the vessel always totals 100%. Write an `insight` that explains the Jungian mechanism, not just the verdict. That explanation is what students learn from. Set `practice` to the id of the practice in `lib/practices.ts` that trains the healthier response; the reveal card links to it. Then add the Georgian text under the same id in `lib/ka.ts`, with the choices in the same order.
 
 ## Model notes (for teachers)
 

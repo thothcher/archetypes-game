@@ -125,7 +125,7 @@ export default function Practices() {
           const on = picked.includes(p.id);
           const a = archL(p.for, gender, lang);
           return (
-            <article key={p.id} className={`practice ${on ? "on" : ""}`} style={{ ["--c" as string]: a.color }}>
+            <article key={p.id} id={p.id} className={`practice ${on ? "on" : ""}`} style={{ ["--c" as string]: a.color }}>
               <button className="practice-head" onClick={() => toggle(p.id)} aria-pressed={on}>
                 <span className="mono dim">{String(i + 1).padStart(2, "0")}</span>
                 <span className="practice-title display">{pick(p.title, gender)}</span>

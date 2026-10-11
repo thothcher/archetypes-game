@@ -19,7 +19,8 @@ import {
 import { INITIAL, setGame, useGame, type Step } from "@/lib/gameStore";
 import { useLang } from "@/lib/i18n";
 import { localePath, type Lang } from "@/lib/locale";
-import { SCENARIOS, biggestMovers, localizeScenario } from "@/lib/scenarios";
+import { PRACTICES, localizePractice } from "@/lib/practices";
+import { DAY_LENGTH, SCENARIOS, biggestMovers, drawDay, localizeScenario } from "@/lib/scenarios";
 import { chime } from "@/lib/sound";
 import { UI_TEXT, type UI } from "@/lib/ui";
 import { useGender } from "@/lib/useGender";
@@ -37,7 +38,7 @@ export default function Game() {
   const { lang } = useLang();
   const t = UI_TEXT[lang].game;
   const [gender, setGender] = useGender();
-  const { psyche, idx, phase, choiceIdx, guess, history, pulseTick, pulseKeys, predictMode } = useGame();
+  const { psyche, deck, idx, phase, choiceIdx, guess, history, pulseTick, pulseKeys, predictMode } = useGame();
   const stageRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const inView = useRef(false);
@@ -62,8 +63,11 @@ export default function Game() {
   }, [phase, idx]);
 
   const g: Gender = gender ?? "man";
-  const scenario = localizeScenario(SCENARIOS[idx], lang);
+  // The deck is empty until a vessel is chosen; no scenario is shown before then.
+  const scenario = localizeScenario(SCENARIOS[deck[idx] ?? 0], lang);
   const choice = choiceIdx === null ? null : scenario.choices[choiceIdx];
+  const practiceSrc = PRACTICES.find((p) => p.id === scenario.practice);
+  const practice = practiceSrc && localizePractice(practiceSrc, lang);
   const score = history.filter((h) => h.correct).length;
   const guesses = history.filter((h) => h.guessed).length;
   const deltas = choice ? pick(choice.deltas, g) : {};
@@ -76,7 +80,8 @@ export default function Game() {
 
   function chooseGender(next: Gender) {
     setGender(next);
-    setGame((s) => ({ phase: "choose", pulseKeys: ["soul"], pulseTick: s.pulseTick + 1 }));
+    // Every day starts with a fresh, random draw of situations.
+    setGame((s) => ({ phase: "choose", deck: drawDay(), idx: 0, pulseKeys: ["soul"], pulseTick: s.pulseTick + 1 }));
   }
 
   function choose(i: number) {
@@ -93,14 +98,14 @@ export default function Game() {
       psyche: applyDeltas(s.psyche, d),
       pulseKeys: Object.keys(d) as ArchetypeKey[],
       pulseTick: s.pulseTick + 1,
-      history: [...s.history, { scenario: idx, choice: i, guessed, correct }],
+      history: [...s.history, { scenario: deck[idx], choice: i, guessed, correct }],
       phase: "reveal",
     }));
     chime((d.self ?? 0) - (d.shadow ?? 0) >= 0 ? "light" : "dark");
   }
 
   function next() {
-    if (idx + 1 >= SCENARIOS.length) setGame({ choiceIdx: null, guess: null, phase: "end" });
+    if (idx + 1 >= deck.length) setGame({ choiceIdx: null, guess: null, phase: "end" });
     else setGame({ choiceIdx: null, guess: null, idx: idx + 1, phase: "choose" });
   }
 
@@ -147,8 +152,7 @@ export default function Game() {
             <div className="hud">
               <div className="hud-row">
                 <span className="mono dim">
-                  {phase === "gender" ? "00" : String(Math.min(idx + 1, SCENARIOS.length)).padStart(2, "0")} /{" "}
-                  {SCENARIOS.length}
+                  {phase === "gender" ? "00" : String(Math.min(idx + 1, DAY_LENGTH)).padStart(2, "0")} / {DAY_LENGTH}
                 </span>
                 <span className="mono dim">
                   {t.insight} {score}/{guesses}
@@ -333,8 +337,14 @@ export default function Game() {
                       <cite className="mono">{scenario.quote.source}</cite>
                     </blockquote>
                   )}
+                  {practice && (
+                    <p className="try" style={{ ["--c" as string]: archL(practice.for, g, lang).color }}>
+                      <span className="mono dim">{t.tryPractice}</span>
+                      <Link href={`${localePath("/practices/", lang)}#${practice.id}`}>{pick(practice.title, g)} →</Link>
+                    </p>
+                  )}
                   <button className="cta" onClick={next}>
-                    {idx + 1 >= SCENARIOS.length ? t.seeVessel : t.next} <span className="mono" aria-hidden>↵</span>
+                    {idx + 1 >= deck.length ? t.seeVessel : t.next} <span className="mono" aria-hidden>↵</span>
                   </button>
                 </m.div>
               )}

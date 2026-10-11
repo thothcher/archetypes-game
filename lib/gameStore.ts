@@ -18,6 +18,9 @@ export interface Step {
 
 export interface GameState {
   psyche: Psyche;
+  /** this day's cards as indexes into SCENARIOS, drawn when the player picks a vessel */
+  deck: number[];
+  /** position in the deck */
   idx: number;
   phase: Phase;
   choiceIdx: number | null;
@@ -30,6 +33,7 @@ export interface GameState {
 
 export const INITIAL: GameState = {
   psyche: START,
+  deck: [],
   idx: 0,
   phase: "gender",
   choiceIdx: null,

@@ -74,6 +74,7 @@ const en = {
     seeVessel: "See your vessel",
     again: "Begin again",
     toPractices: "Practices of balance →",
+    tryPractice: "Try it in real life:",
     ringTitle:
       "Individuation index: a strong Self, an integrated Shadow, a flexible Persona, and a soul-image you relate to without being possessed by it",
     individuation: "individuation",
@@ -210,6 +211,7 @@ const ka: UI = {
     seeVessel: "ნახე შენი ჭურჭელი",
     again: "თავიდან დაწყება",
     toPractices: "ბალანსის პრაქტიკები →",
+    tryPractice: "სცადე ცხოვრებაში:",
     ringTitle:
       "ინდივიდუაციის ინდექსი: ძლიერი თვითობა, ინტეგრირებული ჩრდილი, მოქნილი პერსონა და სულის ხატთან ცნობიერი კავშირი, მისი შეპყრობის გარეშე",
     individuation: "ინდივიდუაცია",
